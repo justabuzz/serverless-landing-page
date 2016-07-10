@@ -14,6 +14,7 @@ The CloudFormation template provisions the following AWS resources:
 * AWS API Gateway to receive submitted Contact Us form data and pass it to AWS Lambda
 * AWS Lambda to publish the submitted data via AWS SNS
 * AWS SNS to send the form data to the designated email address
+* Various AMI roles for the necessary permissions the resources require 
 
 The repository includes an initial version for the landing page HTML, which includes:
 * index.html: a basic landing page with a Contact form and all the code to submit it to the API Gateway
@@ -29,14 +30,15 @@ Make sure the AWS region you deploy this on supports the following AWS resources
 
 You can check that in the [AWS Region Table].
 
-## How To Use
+## How To Setup
 * Run the CloudFormation template to provision all necessary AWS resources. In the process the system will ask you for:
     * Stack Name
     * Hosted Zone - domain (or sub-domain) for the landing page - this is important in order to enable S3-based hosting
     * Email Receipient - recipient of the submitted form data
 * Grab the API Gateway 'prod' endpoint URL - you can do this by accessing the prod stage in API Gateway console
 * Replace the URL place holder in index.html with the endpoint URL
-* Upload to the S3 bucket the two files index.html and error.html
+* Upload to the S3 bucket the two files index.html and error.html and make them public
+* Remember to confirm the receiving of emails from the site - a confirmation email is sent as part of the creation of the site
 
 You will find your new serverless landing page site URL under the CloudFormation template's Outputs tab.
 
