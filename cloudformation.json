@@ -1,0 +1,310 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Template for creating a serverless landing page with contact form",
+
+  "Parameters" : {
+    "RecipientEmail" : {
+      "Type" : "String",
+      "Description" : "Address of recipient of contact form submitted details"
+    },
+    "HostedZone" : {
+      "Type" : "String",
+      "Description" : "The DNS name of an existing Amazon Route 53 hosted zone",
+      "AllowedPattern" : "(?!-)[a-zA-Z0-9-.]{1,63}(?<!-)",
+      "ConstraintDescription" : "must be a valid DNS zone name."
+    }
+  },
+
+  "Mappings" : {
+    "Region2S3WebsiteSuffix": {
+      "us-east-1"      : { "Suffix": ".s3-website-us-east-1.amazonaws.com" },
+      "us-west-1"      : { "Suffix": ".s3-website-us-west-1.amazonaws.com" },
+      "us-west-2"      : { "Suffix": ".s3-website-us-west-2.amazonaws.com" },
+      "eu-west-1"      : { "Suffix": ".s3-website-eu-west-1.amazonaws.com" },
+      "ap-northeast-1" : { "Suffix": ".s3-website-ap-northeast-1.amazonaws.com" },
+      "ap-northeast-2" : { "Suffix": ".s3-website-ap-northeast-2.amazonaws.com" },
+      "ap-southeast-1" : { "Suffix": ".s3-website-ap-southeast-1.amazonaws.com" },
+      "ap-southeast-2" : { "Suffix": ".s3-website-ap-southeast-2.amazonaws.com" },
+      "sa-east-1"      : { "Suffix": ".s3-website-sa-east-1.amazonaws.com" },
+      "cn-north-1"     : { "Suffix": ".s3-website.cn-north-1.amazonaws.com.cn" },
+      "eu-central-1"   : { "Suffix": ".s3-website-eu-central-1.amazonaws.com" }
+    }
+  },
+
+  "Resources": {
+    "S3BucketForStaticContent": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": { "Ref" : "HostedZone" },
+        "AccessControl": "PublicRead",
+        "WebsiteConfiguration": {
+          "IndexDocument": "index.html",
+          "ErrorDocument": "error.html"
+        }
+      }
+    },
+    "topicLandingPageContact": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "DisplayName": { "Fn::Join" : [ "", [{"Ref" : "AWS::StackName"}, "Contact"]]},
+        "Subscription": [
+          {
+            "Endpoint": { "Ref" : "RecipientEmail" },
+            "Protocol": "email"
+          }
+        ]
+      }
+    },
+    "snspolicyLandingPageContact": {
+      "Type": "AWS::SNS::TopicPolicy",
+      "Properties": {
+        "Topics": [
+          { "Ref" : "topicLandingPageContact" }
+        ],
+        "PolicyDocument": {
+          "Version": "2008-10-17",
+          "Id": "__default_policy_ID",
+          "Statement": [
+            {
+              "Sid": "__default_statement_ID",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*"
+              },
+              "Action": [
+                "SNS:GetTopicAttributes",
+                "SNS:SetTopicAttributes",
+                "SNS:AddPermission",
+                "SNS:RemovePermission",
+                "SNS:DeleteTopic",
+                "SNS:Subscribe",
+                "SNS:ListSubscriptionsByTopic",
+                "SNS:Publish",
+                "SNS:Receive"
+              ],
+              "Resource": {
+                "Ref": "topicLandingPageContact"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceOwner": {"Ref" : "AWS::AccountId"}
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Lambda": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Handler": "index.handle",
+        "Role": { "Fn::GetAtt" : ["LambdaExecutionRole", "Arn"] },
+        "Code": {
+          "ZipFile":  { "Fn::Join": ["", [
+            "var AWS = require(\"aws-sdk\");",
+            "exports.handle = function(event, context) {",
+            "    var eventText = JSON.stringify(event, null, 2);",
+            "    console.log(\"Received event:\", eventText);",
+            "    var sns = new AWS.SNS();",
+            "    var params = {",
+            "        Message: eventText,",
+            "        Subject: \"Email from ", {"Ref" : "AWS::StackName"}, "\",",
+            "        TopicArn: \"", { "Ref": "topicLandingPageContact" }, "\"",
+            "    };",
+            "    sns.publish(params, context.done);",
+            "};"
+          ]]}
+        },
+        "Runtime": "nodejs4.3"
+      }
+    },
+    "LambdaExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{ "Effect": "Allow", "Principal": {"Service": ["lambda.amazonaws.com"]}, "Action": ["sts:AssumeRole"] }]
+        },
+        "Path": "/",
+        "Policies": [{
+          "PolicyName": "root",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              { "Effect": "Allow", "Action": ["logs:*"], "Resource": "arn:aws:logs:*:*:*" },
+              {
+                  "Sid": "Stmt1467889962000",
+                  "Effect": "Allow",
+                  "Action": [
+                      "sns:Publish"
+                  ],
+                  "Resource": [
+                      { "Ref": "topicLandingPageContact" }
+                  ]
+              }
+            ]
+          }
+        }]
+      }
+    },
+    "RestApiRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{ "Effect": "Allow", "Principal": {"Service": ["apigateway.amazonaws.com"]}, "Action": ["sts:AssumeRole"] }]
+        },
+        "Path": "/",
+        "Policies": [{
+          "PolicyName": "root",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              { "Effect": "Allow", "Action": ["lambda:InvokeFunction"], "Resource": { "Fn::GetAtt" : ["Lambda", "Arn"] } }
+            ]
+          }
+        }]
+      }
+    },
+    "RestApi" : {
+      "Type" : "AWS::ApiGateway::RestApi",
+      "Properties" : {
+        "Name": { "Fn::Join" : [ "", [{"Ref" : "AWS::StackName"}, " Landing Page"]] },
+        "Body": {
+          "swagger": "2.0",
+          "info": {
+            "version": "2016-07-07T11:29:55Z",
+            "title": { "Fn::Join" : [ "", [{"Ref" : "AWS::StackName"}, " Landing Page"]] }
+          },
+          "basePath": "/prod",
+          "schemes": [
+            "https"
+          ],
+          "paths": {
+            "/": {
+              "post": {
+                "consumes": [
+                  "application/json"
+                ],
+                "produces": [
+                  "application/json"
+                ],
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "schema": {
+                      "$ref": "#/definitions/Empty"
+                    },
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "x-amazon-apigateway-integration": {
+                  "credentials": { "Fn::GetAtt" : ["RestApiRole", "Arn"] },
+                  "responses": {
+                    "default": {
+                      "statusCode": "200",
+                      "responseParameters": {
+                        "method.response.header.Access-Control-Allow-Origin": "'*'"
+                      }
+                    }
+                  },
+                  "requestTemplates": {
+                    "application/json": "#set ($data = $util.parseJson($input.json('$')))\n{\n    \"name\" : \"$data.name\",\n    \"email\" : \"$data.email\",\n    \"phone\" : \"$data.phone\"\n}"
+                  },
+                  "uri": { "Fn::Join" : [ "", ["arn:aws:apigateway:", {"Ref" : "AWS::Region"}, ":lambda:path/2015-03-31/functions/", {"Fn::GetAtt": [ "Lambda", "Arn" ]}, "/invocations"]] },
+                  "passthroughBehavior": "when_no_templates",
+                  "httpMethod": "POST",
+                  "type": "aws"
+                }
+              },
+              "options": {
+                "consumes": [
+                  "application/json"
+                ],
+                "produces": [
+                  "application/json"
+                ],
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "schema": {
+                      "$ref": "#/definitions/Empty"
+                    },
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "type": "string"
+                      },
+                      "Access-Control-Allow-Methods": {
+                        "type": "string"
+                      },
+                      "Access-Control-Allow-Headers": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "x-amazon-apigateway-integration": {
+                  "responses": {
+                    "default": {
+                      "statusCode": "200",
+                      "responseParameters": {
+                        "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                        "method.response.header.Access-Control-Allow-Origin": "'*'"
+                      }
+                    }
+                  },
+                  "requestTemplates": {
+                    "application/json": "{\"statusCode\": 200}"
+                  },
+                  "passthroughBehavior": "when_no_match",
+                  "type": "mock"
+                }
+              }
+            }
+          },
+          "definitions": {
+            "Empty": {
+              "type": "object"
+            }
+          }
+        },
+        "Description": "Handles submitted contact form",
+        "FailOnWarnings": true
+      }
+    },
+    "StageApi": {
+      "Type" : "AWS::ApiGateway::Stage",
+      "Properties" : {
+        "DeploymentId" : { "Ref": "DeployApi" },
+        "Description" : { "Fn::Join" : [ "", [{"Ref" : "AWS::StackName"}, " Landing Page"]] },
+        "RestApiId" : { "Ref": "RestApi" },
+        "StageName" : "prod"
+      }
+    },
+    "DeployApi": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "Properties" : {
+        "Description" : { "Fn::Join" : [ "", [{"Ref" : "AWS::StackName"}, " Landing Page"]] },
+        "RestApiId" : { "Ref": "RestApi" },
+        "StageName" : "DummyStage"
+      }
+    }
+  },
+
+  "Outputs" : {
+    "BucketName" : {
+      "Value" : { "Ref" : "S3BucketForStaticContent" },
+      "Description" : "Name of S3 bucket to hold website content"
+    },
+    "WebsiteURL" : {
+      "Value" :  {"Fn::GetAtt": ["S3BucketForStaticContent", "WebsiteURL"]},
+      "Description" : "The URL of the newly created website"
+    }
+  }
+}

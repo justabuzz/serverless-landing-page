@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>My landing page</title>
+<link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+<style>
+body {
+	font-family: 'Open Sans', sans-serif;
+	margin: 0;
+	padding: 0;
+}
+.center {
+	margin: 20px auto;
+	text-align: center;
+}
+h1 {
+	margin-top: 5px;
+}
+.center label {
+	display: block;
+    margin: 5px 0;
+}
+.center label span {
+	display: inline-block;
+    width: 100px;
+    margin-right: 10px;
+    text-align: right;
+    font-weight: bold;
+}
+
+#thanks {
+    display: none;
+}
+</style>
+<script src="https://code.jquery.com/jquery-3.0.0.min.js" async="true"></script>
+<script>
+
+function submitContact() {
+    $("#btn").prop('disabled', true);
+    
+    var formData = {
+        name: $("#name").val(),
+        email: $("#email").val(),
+        phone: $("#phone").val()
+    };
+    
+    $.ajax({
+        method: "POST",
+        url: "<<<<< REPLACE ME WITH API GATEWAY PROD STAGE ENDPOINT URL >>>>>",
+        data: JSON.stringify(formData),
+        cache: false,
+        contentType: "application/json"
+    })
+    .done(function() {
+        $("#form").hide("fast", function() {
+            $("#thanks").show("fast");
+        });
+    })
+    .fail(function() {
+        console.log( "error" );
+    })
+    .always(function() {
+        console.log( "finished" );
+    });
+
+    return false;
+}
+
+</script>
+</head>
+<body>
+	<div class="center">
+		<h1>Welcome</h1>
+		<p>Here's some info about this landing page</p>
+		<p>Contact: <a href="mailto:example@example.com">example@example.com</a></p>
+		<p>
+            <h2>Contact Us</h2>
+			<form id="form" method="GET" onsubmit="return submitContact()">
+				<label><span>Name:</span><input type="text" name="name" id="name" /></label>
+				<label><span>Email:</span><input type="text" name="email" id="email" /></label>
+				<label><span>Phone:</span><input type="text" name="phone" id="phone" /></label>
+                <br/>
+				<input id="btn" type="submit" value="Submit" />
+			</form>
+		</p>
+        <p id="thanks">
+            We have received your contact and will get back to you shortly!
+        </p>
+	</div>
+</body>
+</html>
