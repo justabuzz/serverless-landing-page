@@ -47,6 +47,12 @@ You probably want to customise the site's URL. Here's how you can do that using 
 
 You may also configure AWS CloudFront to CDN your landing page. I didn't include that as part of the CloudFormation as it may incur unecessary costs to some users. Here's how to [configure CloudFront with S3].
 
+## FAQ
+### How to customise the Contact Us form?
+Customising the form requires an update in two places:
+* Add the required fields and update the JS in index.html.
+* Update API Gateway's POST method - add the new fields under Method Integration (under Body Mapping Templates)
+
 That's it! Enjoy!
 
    [@justabuzz]: <https://github.com/justabuzz/>
