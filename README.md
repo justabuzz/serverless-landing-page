@@ -1,4 +1,4 @@
-# AWS-based Serverless Landing Page
+# Serverless Landing Page
 An AWS CloudFormation template for creating a serverless landing page website.
 
 Author: [@justabuzz] | http://www.onclouds.com.au/
@@ -21,7 +21,7 @@ The repository includes an initial version for the landing page HTML, which incl
 * error.html: an error page if users accidentally reach the wrong URL on the site
 
 ## Infrastructure design
-![Image of Yaktocat](https://raw.githubusercontent.com/justabuzz/serverless-landing-page/master/ServerlessLandingPage.png)
+![Infrastructure flow chart](https://raw.githubusercontent.com/justabuzz/serverless-landing-page/master/ServerlessLandingPage.png)
 
 ## Requirements
 Make sure the AWS region you deploy this on supports the following AWS resources:
